@@ -29,27 +29,40 @@ CREATE TABLE IF NOT EXISTS bookings (
     CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
   notes TEXT,
   juice_reference TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Prevents double-booking the same slot atomically (pairs with app-level check)
+  CONSTRAINT bookings_slot_unique UNIQUE (booking_date, booking_time)
 );
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_bookings_date   ON bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 
+-- ============================================================
 -- Row Level Security
+-- ============================================================
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
--- Anyone can read services
+-- Anyone can read services (used by the public booking page)
 CREATE POLICY "services_select" ON services FOR SELECT USING (true);
 
--- Anyone can create a booking (public booking form)
+-- Anyone can create a booking via the public form
+-- (server route validates all fields before insert)
 CREATE POLICY "bookings_insert" ON bookings FOR INSERT WITH CHECK (true);
 
--- Anyone can read bookings (API layer enforces admin-only for full list)
-CREATE POLICY "bookings_select" ON bookings FOR SELECT USING (true);
+-- Direct reads of bookings are blocked for anon key holders.
+-- All booking reads go through our server API routes which use
+-- the service_role key (bypasses RLS) — protecting client PII.
+CREATE POLICY "bookings_select" ON bookings FOR SELECT USING (false);
 
--- Service-role key handles admin updates (bypasses RLS)
+-- ============================================================
+-- Migration: apply to existing databases
+-- Run these ALTER statements if you already have the tables:
+-- ============================================================
+-- ALTER TABLE bookings ADD CONSTRAINT bookings_slot_unique UNIQUE (booking_date, booking_time);
+-- DROP POLICY IF EXISTS "bookings_select" ON bookings;
+-- CREATE POLICY "bookings_select" ON bookings FOR SELECT USING (false);
 
 -- ============================================================
 -- Seed: Services

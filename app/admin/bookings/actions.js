@@ -1,18 +1,23 @@
 'use server'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
-import { jwtVerify } from 'jose'
+import { verifyAdmin } from '@/lib/auth'
 import { createServerClient } from '@/lib/supabase-server'
 
-async function verifyAdmin() {
-  const token = cookies().get('admin-token')?.value
-  if (!token) throw new Error('Unauthorized')
-  await jwtVerify(token, new TextEncoder().encode(process.env.ADMIN_SECRET))
-}
+const ALLOWED_STATUSES = new Set(['pending', 'confirmed', 'cancelled', 'completed'])
 
 export async function updateStatus(id, status) {
   await verifyAdmin()
+
+  if (!ALLOWED_STATUSES.has(status)) {
+    throw new Error('Invalid status')
+  }
+  if (typeof id !== 'string' || id.length > 40) {
+    throw new Error('Invalid booking ID')
+  }
+
   const supabase = createServerClient()
-  await supabase.from('bookings').update({ status }).eq('id', id)
+  const { error } = await supabase.from('bookings').update({ status }).eq('id', id)
+  if (error) throw error
+
   revalidatePath('/admin/bookings')
 }

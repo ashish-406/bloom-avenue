@@ -1,9 +1,12 @@
 export default function robots() {
   return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-    },
-    sitemap: 'https://bloomavenuelespa.vercel.app/sitemap.xml',
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: ['/admin', '/api'],
+      },
+    ],
+    sitemap: 'https://bloom-avenue.vercel.app/sitemap.xml',
   }
 }

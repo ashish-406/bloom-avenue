@@ -5,10 +5,10 @@ import { MessageCircle } from 'lucide-react'
 export default function WhatsAppButton() {
   return (
     <motion.a
-      href="https://wa.me/23054785001"
+      href="https://wa.me/23054785001?text=Hi!+I'd+like+to+book+an+appointment+at+Bloom+Avenue+Le+Spa."
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Book via WhatsApp"
+      aria-label="Chat with us on WhatsApp"
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.4, delay: 1.5, type: 'spring', stiffness: 200 }}

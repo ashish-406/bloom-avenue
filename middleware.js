@@ -12,10 +12,16 @@ export async function middleware(request) {
     }
 
     try {
-      await jwtVerify(token, new TextEncoder().encode(process.env.ADMIN_SECRET))
+      await jwtVerify(
+        token,
+        new TextEncoder().encode(process.env.ADMIN_SECRET),
+        { algorithms: ['HS256'] } // pin algorithm — prevents confusion attacks
+      )
       return NextResponse.next()
     } catch {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
+      const res = NextResponse.redirect(new URL('/admin/login', request.url))
+      res.cookies.delete('admin-token') // clear invalid/expired cookie
+      return res
     }
   }
 

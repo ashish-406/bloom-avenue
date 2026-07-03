@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, Check, Clock, Calendar,
-  User, Phone, FileText, MessageCircle, Smartphone,
+  User, Phone, FileText, MessageCircle, Smartphone, AlertCircle,
 } from 'lucide-react'
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
@@ -17,12 +17,11 @@ const STEPS = ['Service', 'Date & Time', 'Your Details', 'Pay & Confirm']
 
 // ─── Calendar helper ──────────────────────────────────────────────────────────
 function CalendarGrid({ currentMonth, selected, onSelect }) {
-  const start   = startOfMonth(currentMonth)
-  const end     = endOfMonth(currentMonth)
-  const days    = eachDayOfInterval({ start, end })
-  const today   = startOfDay(new Date())
+  const start  = startOfMonth(currentMonth)
+  const end    = endOfMonth(currentMonth)
+  const days   = eachDayOfInterval({ start, end })
+  const today  = startOfDay(new Date())
 
-  // Pad front so Mon = col 1 (0=Sun in getDay, treat Sun as 7)
   const firstDow = (getDay(start) + 6) % 7
   const blanks   = Array.from({ length: firstDow })
 
@@ -36,17 +35,18 @@ function CalendarGrid({ currentMonth, selected, onSelect }) {
       <div className="grid grid-cols-7 gap-1">
         {blanks.map((_, i) => <div key={`b${i}`} />)}
         {days.map((day) => {
-          const past      = isBefore(startOfDay(day), today)
-          const isSunday  = getDay(day) === 0
-          const disabled  = past || isSunday
+          const past       = isBefore(startOfDay(day), today)
+          const isSunday   = getDay(day) === 0
+          const disabled   = past || isSunday
           const isSelected = selected && isSameDay(day, selected)
-          const isNow     = isToday(day)
+          const isNow      = isToday(day)
 
           return (
             <button
               key={day.toISOString()}
               disabled={disabled}
               onClick={() => onSelect(day)}
+              title={isSunday ? 'Closed on Sundays' : undefined}
               className={`
                 h-9 w-full rounded-lg text-sm font-dmsans transition-all
                 ${disabled ? 'text-ink/20 cursor-not-allowed' : 'hover:bg-rose/10 cursor-pointer'}
@@ -60,6 +60,9 @@ function CalendarGrid({ currentMonth, selected, onSelect }) {
           )
         })}
       </div>
+      <p className="font-dmsans text-xs text-ink/35 text-center mt-3">
+        We are open Monday – Saturday, 9:00 am – 6:00 pm. Closed on Sundays.
+      </p>
     </div>
   )
 }
@@ -69,8 +72,8 @@ function StepBar({ step }) {
   return (
     <div className="flex items-center justify-center gap-2 mb-10">
       {STEPS.map((label, i) => {
-        const num   = i + 1
-        const done  = step > num
+        const num    = i + 1
+        const done   = step > num
         const active = step === num
         return (
           <div key={label} className="flex items-center gap-2">
@@ -96,23 +99,35 @@ function StepBar({ step }) {
   )
 }
 
+// ─── Inline error banner ──────────────────────────────────────────────────────
+function ErrorBanner({ message }) {
+  if (!message) return null
+  return (
+    <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 font-dmsans text-sm rounded-xl px-4 py-3 mb-6">
+      <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+      {message}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function BookingFlow({ initialService }) {
-  const [step,            setStep]            = useState(1)
-  const [activeCategory,  setActiveCategory]  = useState(CATEGORIES[0])
-  const [service,         setService]         = useState(null)
-  const [currentMonth,    setCurrentMonth]    = useState(new Date())
-  const [selectedDate,    setSelectedDate]    = useState(null)
-  const [selectedTime,    setSelectedTime]    = useState(null)
-  const [slots,           setSlots]           = useState([])
-  const [loadingSlots,    setLoadingSlots]    = useState(false)
-  const [name,            setName]            = useState('')
-  const [phone,           setPhone]           = useState('')
-  const [notes,           setNotes]           = useState('')
-  const [juiceRef,        setJuiceRef]        = useState('')
-  const [submitting,      setSubmitting]      = useState(false)
-  const [slotError,       setSlotError]       = useState('')
-  const [booking,         setBooking]         = useState(null)
+  const [step,           setStep]           = useState(1)
+  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0])
+  const [service,        setService]        = useState(null)
+  const [currentMonth,   setCurrentMonth]   = useState(new Date())
+  const [selectedDate,   setSelectedDate]   = useState(null)
+  const [selectedTime,   setSelectedTime]   = useState(null)
+  const [slots,          setSlots]          = useState([])
+  const [loadingSlots,   setLoadingSlots]   = useState(false)
+  const [name,           setName]           = useState('')
+  const [phone,          setPhone]          = useState('')
+  const [notes,          setNotes]          = useState('')
+  const [juiceRef,       setJuiceRef]       = useState('')
+  const [submitting,     setSubmitting]     = useState(false)
+  const [slotError,      setSlotError]      = useState('')
+  const [submitError,    setSubmitError]    = useState('')
+  const [booking,        setBooking]        = useState(null)
 
   // Pre-select from URL param
   useEffect(() => {
@@ -130,7 +145,7 @@ export default function BookingFlow({ initialService }) {
   // Fetch slots when date or service changes
   useEffect(() => {
     if (!selectedDate || !service) return
-    const fetch_ = async () => {
+    const fetchSlots = async () => {
       setLoadingSlots(true)
       setSelectedTime(null)
       setSlotError('')
@@ -144,25 +159,24 @@ export default function BookingFlow({ initialService }) {
         setLoadingSlots(false)
       }
     }
-    fetch_()
+    fetchSlots()
   }, [selectedDate, service])
 
   const handleSubmit = async () => {
     setSubmitting(true)
+    setSubmitError('')
     try {
       const res = await fetch('/api/bookings', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          service_name:     service.name,
-          service_category: service.category,
-          client_name:      name.trim(),
-          client_phone:     phone.trim(),
-          booking_date:     format(selectedDate, 'yyyy-MM-dd'),
-          booking_time:     selectedTime,
-          duration_minutes: service.duration,
-          notes:            notes.trim() || null,
-          juice_reference:  juiceRef.trim() || null,
+          service_name:    service.name,
+          client_name:     name.trim(),
+          client_phone:    phone.trim(),
+          booking_date:    format(selectedDate, 'yyyy-MM-dd'),
+          booking_time:    selectedTime,
+          notes:           notes.trim() || null,
+          juice_reference: juiceRef.trim() || null,
         }),
       })
       const data = await res.json()
@@ -172,22 +186,28 @@ export default function BookingFlow({ initialService }) {
         setSelectedTime(null)
         return
       }
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) {
+        setSubmitError(data.error || 'Something went wrong. Please try again.')
+        return
+      }
       setBooking(data)
       setStep(5)
-    } catch (err) {
-      alert(err.message || 'Something went wrong. Please try again.')
+    } catch {
+      setSubmitError('Network error. Please check your connection and try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
+  // Mauritius mobile: 7–8 digits after stripping spaces/dashes
+  const phoneDigits = phone.trim().replace(/[\s\-]/g, '')
   const canStep2 = !!service
   const canStep3 = selectedDate && selectedTime
-  const canStep4 = name.trim().length > 1 && phone.trim().length > 5
+  const canStep4 = name.trim().length >= 2 && /^\d{7,8}$/.test(phoneDigits)
 
   // ── Step 5: Confirmation ───────────────────────────────────────────────────
   if (step === 5 && booking) {
+    const bookingRef = `#${booking.id.slice(0, 8).toUpperCase()}`
     return (
       <div className="min-h-screen bg-ivory flex items-center justify-center px-6 py-24">
         <motion.div
@@ -199,22 +219,24 @@ export default function BookingFlow({ initialService }) {
             <Check size={32} className="text-rose" />
           </div>
           <h1 className="font-cormorant text-4xl font-semibold text-charcoal mb-2">Booking Received!</h1>
+          <p className="font-dmsans text-rose text-xs font-medium tracking-widest mb-1">{bookingRef}</p>
           <p className="font-dmsans text-ink/60 text-sm mb-8">
-            We'll confirm your appointment shortly. You'll hear from us via WhatsApp or call.
+            We'll confirm your appointment shortly via WhatsApp or phone call.
           </p>
 
           <div className="bg-ivory rounded-2xl p-6 text-left space-y-3 mb-8">
-            <Row label="Service"  value={service.name} />
-            <Row label="Date"     value={format(selectedDate, 'EEEE, d MMMM yyyy')} />
-            <Row label="Time"     value={selectedTime} />
-            <Row label="Duration" value={`${service.duration} min`} />
-            <Row label="Name"     value={name} />
-            <Row label="Phone"    value={phone} />
+            <Row label="Reference" value={bookingRef} />
+            <Row label="Service"   value={service.name} />
+            <Row label="Date"      value={format(selectedDate, 'EEEE, d MMMM yyyy')} />
+            <Row label="Time"      value={selectedTime} />
+            <Row label="Duration"  value={`${service.duration} min`} />
+            <Row label="Name"      value={name} />
+            <Row label="Phone"     value={`+230 ${phone}`} />
           </div>
 
           <a
             href={`https://wa.me/23054785001?text=${encodeURIComponent(
-              `Hi! I just booked a ${service.name} on ${format(selectedDate, 'd MMM yyyy')} at ${selectedTime}. My name is ${name}.`
+              `Hi! My booking ref is ${bookingRef}. I've booked a ${service.name} on ${format(selectedDate, 'd MMM yyyy')} at ${selectedTime}. My name is ${name}.`
             )}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -252,7 +274,6 @@ export default function BookingFlow({ initialService }) {
               <h2 className="font-cormorant text-4xl font-light text-charcoal mb-2">Choose Your Treatment</h2>
               <p className="font-dmsans text-sm text-ink/55 mb-8">Select the service you'd like to book.</p>
 
-              {/* Category tabs */}
               <div className="flex flex-wrap gap-2 mb-6">
                 {CATEGORIES.map((cat) => (
                   <button
@@ -269,7 +290,6 @@ export default function BookingFlow({ initialService }) {
                 ))}
               </div>
 
-              {/* Service cards */}
               <div className="grid sm:grid-cols-2 gap-3 mb-10">
                 {SERVICES.filter((s) => s.category === activeCategory).map((s) => (
                   <button
@@ -317,13 +337,8 @@ export default function BookingFlow({ initialService }) {
                 Booking <span className="text-rose font-medium">{service?.name}</span> · {service?.duration} min
               </p>
 
-              {slotError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 font-dmsans text-sm rounded-xl px-4 py-3 mb-6">
-                  {slotError} — please choose a different time.
-                </div>
-              )}
+              <ErrorBanner message={slotError ? `${slotError} Please choose a different time.` : ''} />
 
-              {/* Calendar */}
               <div className="bg-white rounded-2xl border border-rose/10 p-6 mb-6">
                 <div className="flex items-center justify-between mb-5">
                   <button onClick={() => setCurrentMonth((m) => subMonths(m, 1))} className="p-2 rounded-full hover:bg-rose/8 transition-colors">
@@ -336,14 +351,9 @@ export default function BookingFlow({ initialService }) {
                     <ChevronRight size={18} className="text-ink/60" />
                   </button>
                 </div>
-                <CalendarGrid
-                  currentMonth={currentMonth}
-                  selected={selectedDate}
-                  onSelect={(d) => setSelectedDate(d)}
-                />
+                <CalendarGrid currentMonth={currentMonth} selected={selectedDate} onSelect={(d) => setSelectedDate(d)} />
               </div>
 
-              {/* Time slots */}
               {selectedDate && (
                 <div className="bg-white rounded-2xl border border-rose/10 p-6 mb-8">
                   <div className="flex items-center gap-2 mb-4">
@@ -408,34 +418,39 @@ export default function BookingFlow({ initialService }) {
                     type="text"
                     placeholder="e.g. Priya Moonsamy"
                     value={name}
+                    maxLength={120}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full font-dmsans text-sm text-ink outline-none placeholder:text-ink/30"
                   />
                 </Field>
                 <Field label="Phone / WhatsApp" icon={<Phone size={15} />}>
                   <div className="flex items-center gap-2">
-                    <span className="font-dmsans text-sm text-ink/50">+230</span>
+                    <span className="font-dmsans text-sm text-ink/50 flex-shrink-0">+230</span>
                     <input
                       type="tel"
                       placeholder="5XXX XXXX"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      maxLength={12}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^\d\s\-]/g, ''))}
                       className="flex-1 font-dmsans text-sm text-ink outline-none placeholder:text-ink/30"
                     />
                   </div>
+                  {phone && !canStep4 && phone.length > 4 && (
+                    <p className="font-dmsans text-xs text-red-500 mt-1">Please enter a valid Mauritius mobile number (7–8 digits)</p>
+                  )}
                 </Field>
                 <Field label="Notes (optional)" icon={<FileText size={15} />}>
                   <textarea
                     placeholder="Any allergies, preferences, or special requests…"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
+                    maxLength={1000}
                     rows={2}
                     className="w-full font-dmsans text-sm text-ink outline-none placeholder:text-ink/30 resize-none"
                   />
                 </Field>
               </div>
 
-              {/* Mini booking summary */}
               <div className="bg-rose/8 rounded-2xl p-5 mb-8 border border-rose/15">
                 <p className="font-cormorant text-lg font-semibold text-charcoal mb-3">Booking Summary</p>
                 <div className="space-y-1.5">
@@ -467,7 +482,6 @@ export default function BookingFlow({ initialService }) {
                 Pay your deposit via MCB Juice to confirm your slot.
               </p>
 
-              {/* Booking summary */}
               <div className="bg-white rounded-2xl border border-rose/10 p-6 mb-6">
                 <p className="font-cormorant text-lg font-semibold text-charcoal mb-3">Your Booking</p>
                 <div className="space-y-1.5">
@@ -479,7 +493,6 @@ export default function BookingFlow({ initialService }) {
                 </div>
               </div>
 
-              {/* MCB Juice payment card */}
               <div className="bg-charcoal rounded-2xl p-6 mb-6 text-white">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -509,8 +522,7 @@ export default function BookingFlow({ initialService }) {
                 </div>
               </div>
 
-              {/* Juice reference input */}
-              <div className="bg-white rounded-2xl border border-rose/10 p-6 mb-8">
+              <div className="bg-white rounded-2xl border border-rose/10 p-6 mb-6">
                 <label className="font-dmsans text-sm font-medium text-charcoal block mb-3">
                   MCB Juice Transaction Reference <span className="text-ink/40 font-normal">(optional but recommended)</span>
                 </label>
@@ -518,6 +530,7 @@ export default function BookingFlow({ initialService }) {
                   type="text"
                   placeholder="e.g. TXN123456789"
                   value={juiceRef}
+                  maxLength={100}
                   onChange={(e) => setJuiceRef(e.target.value)}
                   className="w-full font-dmsans text-sm text-ink border border-ink/15 rounded-xl px-4 py-3 outline-none focus:border-rose transition-colors"
                 />
@@ -525,6 +538,8 @@ export default function BookingFlow({ initialService }) {
                   Adding your reference helps us confirm your payment faster.
                 </p>
               </div>
+
+              <ErrorBanner message={submitError} />
 
               <button
                 disabled={submitting}
@@ -534,7 +549,7 @@ export default function BookingFlow({ initialService }) {
                 {submitting ? 'Confirming…' : 'Confirm My Booking'}
               </button>
               <p className="font-dmsans text-xs text-ink/40 text-center mt-3">
-                Your booking status will be <strong>Pending</strong> until we verify your Juice payment.
+                Your booking will be <strong>Pending</strong> until we verify your Juice payment.
               </p>
             </motion.div>
           )}
