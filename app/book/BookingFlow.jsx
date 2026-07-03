@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronLeft, ChevronRight, Check, Clock, Calendar,
-  User, Phone, FileText, MessageCircle, Smartphone, AlertCircle,
+  User, Phone, FileText, MessageCircle, Smartphone, AlertCircle, Copy,
 } from 'lucide-react'
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
@@ -128,6 +128,22 @@ export default function BookingFlow({ initialService }) {
   const [slotError,      setSlotError]      = useState('')
   const [submitError,    setSubmitError]    = useState('')
   const [booking,        setBooking]        = useState(null)
+  const [copied,         setCopied]         = useState('')
+
+  const copyToClipboard = async (text, key) => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const el = document.createElement('textarea')
+      el.value = text
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setCopied(key)
+    setTimeout(() => setCopied(''), 2000)
+  }
 
   // Pre-select from URL param
   useEffect(() => {
@@ -494,31 +510,57 @@ export default function BookingFlow({ initialService }) {
               </div>
 
               <div className="bg-charcoal rounded-2xl p-6 mb-6 text-white">
-                <div className="flex items-center gap-3 mb-5">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
                     <Smartphone size={20} className="text-gold" />
                   </div>
                   <div>
                     <p className="font-dmsans font-semibold text-sm">Pay via MCB Juice</p>
-                    <p className="font-dmsans text-xs text-white/50">Secure mobile payment</p>
+                    <p className="font-dmsans text-xs text-white/50">Open your Juice app and send to this number</p>
                   </div>
                 </div>
 
-                <div className="space-y-2 mb-5">
-                  <p className="font-dmsans text-xs text-white/50 uppercase tracking-widest">Send payment to</p>
-                  <p className="font-cormorant text-2xl font-semibold text-gold">+230 5478 5001</p>
-                  <p className="font-dmsans text-sm text-white/70">Bloom Avenue Le Spa</p>
+                {/* Copyable phone number */}
+                <div className="bg-white/8 rounded-xl p-4 mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-dmsans text-xs text-white/40 uppercase tracking-widest mb-1">Send to</p>
+                    <p className="font-cormorant text-2xl font-semibold text-gold">+230 5478 5001</p>
+                    <p className="font-dmsans text-xs text-white/50 mt-0.5">Bloom Avenue Le Spa</p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard('54785001', 'phone')}
+                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-dmsans text-xs font-medium px-4 py-2.5 rounded-lg transition-all flex-shrink-0"
+                  >
+                    {copied === 'phone' ? <Check size={13} /> : <Copy size={13} />}
+                    {copied === 'phone' ? 'Copied!' : 'Copy number'}
+                  </button>
                 </div>
 
-                <div className="bg-white/8 rounded-xl p-4 text-sm font-dmsans text-white/80 leading-relaxed">
-                  <p className="font-semibold text-white mb-1">How to pay:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-white/70">
-                    <li>Open MCB Juice on your phone</li>
-                    <li>Tap <strong className="text-white">Send Money → Mobile Number</strong></li>
-                    <li>Enter <strong className="text-white">5478 5001</strong> and the amount</li>
-                    <li>Use reference: <strong className="text-white">{service?.name.split(' ')[0]} – {name}</strong></li>
-                    <li>Copy the transaction reference below</li>
-                  </ol>
+                {/* Copyable suggested reference */}
+                <div className="bg-white/8 rounded-xl p-4 mb-5 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-dmsans text-xs text-white/40 uppercase tracking-widest mb-1">Use as reference</p>
+                    <p className="font-dmsans text-sm text-white font-medium truncate">
+                      {service?.name.split(' ')[0]} – {name}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(`${service?.name.split(' ')[0]} – ${name}`, 'ref')}
+                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-dmsans text-xs font-medium px-4 py-2.5 rounded-lg transition-all flex-shrink-0"
+                  >
+                    {copied === 'ref' ? <Check size={13} /> : <Copy size={13} />}
+                    {copied === 'ref' ? 'Copied!' : 'Copy ref'}
+                  </button>
+                </div>
+
+                {/* Steps */}
+                <div className="text-sm font-dmsans text-white/70 leading-relaxed space-y-1.5">
+                  <p className="font-semibold text-white text-xs uppercase tracking-widest mb-2">Steps</p>
+                  <p>1 · Open MCB Juice → <strong className="text-white">Send Money → Mobile Number</strong></p>
+                  <p>2 · Paste the number above, enter the amount</p>
+                  <p>3 · Paste the reference above in the description field</p>
+                  <p>4 · Confirm payment — then copy the transaction reference Juice gives you</p>
                 </div>
               </div>
 
