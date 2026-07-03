@@ -1,0 +1,45 @@
+import { createServerClient } from '@/lib/supabase-server'
+import BookingsClient from './BookingsClient'
+
+export const dynamic = 'force-dynamic'
+
+export default async function AdminBookingsPage({ searchParams }) {
+  const supabase = createServerClient()
+  const filter   = searchParams?.filter || 'all'
+  const today    = new Date().toISOString().split('T')[0]
+
+  // Main query based on filter
+  let query = supabase
+    .from('bookings')
+    .select('*')
+    .order('booking_date', { ascending: true })
+    .order('booking_time', { ascending: true })
+
+  if (filter === 'today')    query = query.eq('booking_date', today)
+  if (filter === 'upcoming') query = query.gte('booking_date', today).neq('status', 'cancelled')
+  if (filter === 'pending')  query = query.eq('status', 'pending')
+
+  const { data: bookings } = await query
+
+  // Stats
+  const [{ count: todayCount }, { count: pendingCount }, { count: confirmedCount }, { count: totalCount }] =
+    await Promise.all([
+      supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('booking_date', today).neq('status', 'cancelled'),
+      supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
+      supabase.from('bookings').select('*', { count: 'exact', head: true }),
+    ])
+
+  return (
+    <BookingsClient
+      bookings={bookings || []}
+      stats={{
+        today:     todayCount     ?? 0,
+        pending:   pendingCount   ?? 0,
+        confirmed: confirmedCount ?? 0,
+        total:     totalCount     ?? 0,
+      }}
+      currentFilter={filter}
+    />
+  )
+}

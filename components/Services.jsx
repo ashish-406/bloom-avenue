@@ -134,9 +134,7 @@ export default function Services() {
                 <div className="flex items-center justify-between">
                   <span className="font-dmsans text-sm font-medium text-rose/80">{service.price}</span>
                   <a
-                    href="https://wa.me/23054785001"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/book?service=${encodeURIComponent(service.name)}`}
                     className="font-dmsans text-xs font-medium text-charcoal border border-charcoal/20 rounded-full px-4 py-1.5 hover:bg-rose hover:text-white hover:border-rose transition-all"
                   >
                     Book

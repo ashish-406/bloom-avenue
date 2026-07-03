@@ -89,9 +89,7 @@ export default function Testimonials() {
             "You deserve this."
           </p>
           <a
-            href="https://wa.me/23054785001"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/book"
             className="inline-flex items-center bg-rose text-white font-dmsans text-sm font-medium px-8 py-3.5 rounded-full hover:bg-rose/85 transition-colors shadow-sm"
           >
             Book Your Treatment

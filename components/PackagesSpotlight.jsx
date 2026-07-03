@@ -87,9 +87,7 @@ export default function PackagesSpotlight() {
                 <div className="flex items-center justify-between">
                   <span className="font-cormorant text-2xl font-semibold text-rose">{price}</span>
                   <a
-                    href="https://wa.me/23054785001"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/book?service=${encodeURIComponent(name)}`}
                     className="inline-flex items-center gap-2 bg-rose text-white font-dmsans text-sm font-medium px-6 py-3 rounded-full hover:bg-rose/85 transition-colors shadow-sm"
                   >
                     <MessageCircle size={15} />
@@ -120,9 +118,7 @@ export default function PackagesSpotlight() {
               <div className="text-right ml-6 flex-shrink-0">
                 <p className="font-dmsans text-sm text-rose font-medium mb-2">{price}</p>
                 <a
-                  href="https://wa.me/23054785001"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/book?service=${encodeURIComponent(name)}`}
                   className="font-dmsans text-xs font-medium text-charcoal border border-charcoal/20 rounded-full px-4 py-1.5 hover:bg-rose hover:text-white hover:border-rose transition-all"
                 >
                   Book

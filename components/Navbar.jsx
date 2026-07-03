@@ -59,12 +59,10 @@ export default function Navbar() {
 
         {/* Desktop CTA */}
         <a
-          href="https://wa.me/23054785001"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/book"
           className="hidden md:inline-flex items-center gap-2 bg-rose text-white text-sm font-dmsans font-medium px-6 py-2.5 rounded-full hover:bg-rose/85 transition-colors shadow-sm"
         >
-          Book Now
+          Book Online
         </a>
 
         {/* Mobile toggle */}
@@ -94,12 +92,10 @@ export default function Navbar() {
             ))}
           </ul>
           <a
-            href="https://wa.me/23054785001"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/book"
             className="inline-flex items-center bg-rose text-white text-sm font-dmsans font-medium px-6 py-3 rounded-full"
           >
-            Book via WhatsApp
+            Book Online
           </a>
         </div>
       )}
