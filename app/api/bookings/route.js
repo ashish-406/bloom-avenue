@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { generateSlots } from '@/lib/availability'
 import { SERVICES } from '@/lib/services-data'
+import { notifyOwnerNewBooking } from '@/lib/notify'
 import { isValid, parseISO, getDay, isBefore, startOfDay } from 'date-fns'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -106,6 +107,9 @@ export async function POST(request) {
       }
       throw error
     }
+
+    // Notify owner on WhatsApp — fire-and-forget, never blocks the response
+    notifyOwnerNewBooking(data)
 
     return NextResponse.json(data, { status: 201 })
   } catch (err) {
